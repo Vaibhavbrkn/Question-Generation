@@ -1,4 +1,4 @@
-# Longshot-AI
+# Question Generation
 
 
 ## ✨  [Dataset](https://www.kaggle.com/ananthu017/squad-csv-format)
