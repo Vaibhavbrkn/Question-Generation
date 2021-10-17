@@ -5,6 +5,7 @@ import random
 from transformers import (
     T5ForConditionalGeneration,
     T5Tokenizer,
+    BertTokenizer, BertForSequenceClassification
 )
 import re
 import transformers
@@ -17,10 +18,13 @@ MAX_LEN = 512
 tokenizer = T5Tokenizer.from_pretrained('t5-base')
 model = T5ForConditionalGeneration.from_pretrained(
     'Vaibhavbrkn/question-gen')
+BertModel = BertForSequenceClassification.from_pretrained('good_bad')
+BertToken = BertTokenizer.from_pretrained('good_bad')
 mod = KeyBERT('distilbert-base-nli-mean-tokens')
 model.to(DEVICE)
-
-context = "The Transgender Persons Bill, 2016 was hurriedly passed in the Lok Sabha, amid much outcry from the very community it claims to protect."
+BertModel.to(DEVICE)
+model.eval()
+BertModel.eval()
 
 
 def filter_keyword(data, ran=5):
@@ -52,6 +56,8 @@ def filter_keyword(data, ran=5):
 
 
 # FOR BAD label negative or bottom 3
+labels = ['BAD', 'GOOD']
+
 
 def func(context, slide):
     slide = int(slide)
@@ -59,7 +65,7 @@ def func(context, slide):
     orig = int(np.ceil(randomness * slide))
     temp = slide - orig
     ap = filter_keyword(context, ran=slide*2)
-    outputs = []
+    answer = []
     for i in range(orig):
 
         inputs = "context: " + context + " keyword: " + ap[i][0]
@@ -70,10 +76,14 @@ def func(context, slide):
         dec = [tokenizer.decode(ids) for ids in outs][0]
         st = dec.replace("<pad> ", "")
         st = st.replace("</s>", "")
-        if ap[i][1] > 0.0:
-            outputs.append((st, "Good"))
-        else:
-            outputs.append((st, "Bad"))
+        st_token = BertToken.encode_plus(
+            st, max_length=128, pad_to_max_length=True, return_tensors="pt")
+        outputs = BertModel(st_token['input_ids'].to(
+            DEVICE), attention_mask=st_token['attention_mask'].to(DEVICE)).logits
+        outputs = outputs.detach().cpu()
+        preds = torch.nn.functional.softmax(outputs, dim=1)
+
+        answer.append((st, labels[torch.argmax(preds)]))
 
     del ap[: orig]
 
@@ -89,12 +99,15 @@ def func(context, slide):
             dec = [tokenizer.decode(ids) for ids in outs][0]
             st = dec.replace("<pad> ", "")
             st = st.replace("</s>", "")
-            if keyword[1] > 0.0:
-                outputs.append((st, "Good"))
-            else:
-                outputs.append((st, "Bad"))
+            st_token = BertToken.encode_plus(
+                st, max_length=128, pad_to_max_length=True, return_tensors="pt")
+            outputs = BertModel(st_token['input_ids'].to(
+                DEVICE), attention_mask=st_token['attention_mask'].to(DEVICE)).logits
+            outputs = outputs.detach().cpu()
+            preds = torch.nn.functional.softmax(outputs, dim=1)
+            answer.append((st, labels[torch.argmax(preds)]))
 
-    return outputs
+    return answer
 
 
 gr.Interface(func,
