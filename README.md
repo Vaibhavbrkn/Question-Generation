@@ -22,4 +22,5 @@ python app.py
 2. Dataset was cleaned to only include context, Question, text (title) from above dataset
 3. prompt programming for model input : "context " + context + " keyword " + keyword
 4. for inference programm first generate keywords using keybert then use this keyword with context to generate question.
-5. Gradio is used as UI.
+5. Label of question is inference from model trained on CoLA Dataset.
+6. Gradio is used as UI.
